@@ -50,3 +50,15 @@ The generated `data.dvc` contains one output entry with these actual fields:
 - `path: data`: the workspace path represented by the pointer.
 
 Git versions this metadata file. The corresponding image contents are held by DVC and can be uploaded to or restored from the configured DagsHub remote.
+
+## Question 6
+
+The GitHub `main` branch was verified after the raw-data commit. It contains the project source/configuration and `data.dvc`, but it does not directly contain the ignored Food-11 image files. The hash and related metadata in `data.dvc` identify the exact raw dataset version.
+
+The actual DVC objects were verified as uploaded to the configured DagsHub HTTP remote: after transient socket timeouts on two objects, resumable `dvc push` retries completed with `1 file pushed`. A subsequent clean-clone `dvc pull` restored all 16,643 files from that remote. DagsHub supports browsing DVC-tracked repository data in its authenticated UI; the repository's anonymous web URL redirected to the DagsHub login page, so its signed-in browser view was not independently inspected in this terminal session.
+
+## Question 7
+
+In a fresh temporary clone, `data.dvc` was present immediately after plain `git clone`, but the actual `data/` directory was absent. Running `dvc pull` was required to download the DVC objects and check out the data described by the pointer.
+
+The first pull encountered transient truncated HTTP responses and a 502 response. DVC retained completed objects in its cache, and resumable retries with `--jobs 1` fetched the remainder. The final pull reported everything up to date, `dvc status` reported that data and pipelines were up to date, and the restored raw split counts were training 9,866, evaluation 3,347, and validation 3,430 (16,643 total).
