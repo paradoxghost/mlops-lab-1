@@ -34,3 +34,19 @@ DVC configuration scopes include:
 - System scope (`--system`): machine-wide configuration; DVC reports its Windows path as `C:\ProgramData\iterative\dvc\config`.
 
 Passwords and tokens must never be pushed to GitHub because anyone with repository access could retrieve and abuse them, including from Git history after a later deletion. Therefore Git tracks the non-secret `.dvc/config`, while credential-bearing global or local configuration stays outside Git.
+
+## Question 4
+
+The first `dvc add data` created the repository's top-level `.gitignore` with exactly one rule: `/data`. The leading slash anchors the rule at the repository root. As a result, Git ignores the real files under the `data` directory, while Git tracks the small `data.dvc` pointer. DVC stores and versions the actual dataset content in its cache and configured remote instead of placing 16,643 images in Git.
+
+## Question 5
+
+The generated `data.dvc` contains one output entry with these actual fields:
+
+- `md5: a3a457d03c51ff8b037a833440f6ad13.dir`: the content-addressed DVC hash for this directory version; the `.dir` suffix identifies a directory object.
+- `size: 1188442712`: the total tracked size in bytes.
+- `nfiles: 16643`: the number of files in this version.
+- `hash: md5`: the hash algorithm used for the DVC object.
+- `path: data`: the workspace path represented by the pointer.
+
+Git versions this metadata file. The corresponding image contents are held by DVC and can be uploaded to or restored from the configured DagsHub remote.
