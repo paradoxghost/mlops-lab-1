@@ -21,3 +21,16 @@ With DVC 3.67.1, `dvc init` created:
 - `.dvc/tmp/btime`: an internal runtime file under DVC's ignored temporary directory. It must not be tracked by Git.
 
 The `.dvc` directory itself also holds ignored local state. `.dvc/cache` stores local cached data objects when present, `.dvc/tmp` stores temporary/internal state, and `.dvc/config.local` can hold repository-specific private settings. Those paths must not be committed. Git should track `.dvc/config`, `.dvc/.gitignore`, and `.dvcignore`, along with later `.dvc` pointer files such as `data.dvc`.
+
+## Question 3
+
+The DagsHub remote URL, basic-auth mode, username, and password were configured with `--global`. DVC reports the Windows global configuration location as `C:\Users\vitor\AppData\Local\iterative\dvc\config`. Because this installation uses Microsoft Store Python, Windows physically redirects that file to the Python package's `LocalCache\Local\iterative\dvc\config` location. It is outside this Git repository in either case. The expected global keys were verified as present without displaying their values.
+
+DVC configuration scopes include:
+
+- Repository/project scope (the default): `.dvc/config`, shared through Git. In this project it contains only the safe setting that selects `origin` as the default remote.
+- Local scope (`--local`): `.dvc/config.local`, specific to this checkout and ignored by the generated `.dvc/.gitignore`.
+- Global scope (`--global`): the current user's DVC configuration, shared by that user's repositories on this machine.
+- System scope (`--system`): machine-wide configuration; DVC reports its Windows path as `C:\ProgramData\iterative\dvc\config`.
+
+Passwords and tokens must never be pushed to GitHub because anyone with repository access could retrieve and abuse them, including from Git history after a later deletion. Therefore Git tracks the non-secret `.dvc/config`, while credential-bearing global or local configuration stays outside Git.
