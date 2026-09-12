@@ -62,3 +62,11 @@ The actual DVC objects were verified as uploaded to the configured DagsHub HTTP 
 In a fresh temporary clone, `data.dvc` was present immediately after plain `git clone`, but the actual `data/` directory was absent. Running `dvc pull` was required to download the DVC objects and check out the data described by the pointer.
 
 The first pull encountered transient truncated HTTP responses and a 502 response. DVC retained completed objects in its cache, and resumable retries with `--jobs 1` fetched the remainder. The final pull reported everything up to date, `dvc status` reported that data and pipelines were up to date, and the restored raw split counts were training 9,866, evaluation 3,347, and validation 3,430 (16,643 total).
+
+## Question 8
+
+`git log --oneline -- data.dvc` identified `4622e6d` (`Track data folder with dvc`) as the raw-only data commit and `3241849` (`Add food11_processed and food11_processed_mini`) as the processed-data commit. Before switching versions, `main` pointed to the full commit `3241849d384e84b5ed285c88cafc5c937dbe8da6`.
+
+After `git checkout 4622e6d` and `python -m uv run dvc checkout`, the actual observed result was that `data/food11_processed` and `data/food11_processed_mini` both disappeared. The raw dataset remained present with 9,866 training, 3,347 evaluation, and 3,430 validation images. Git had restored the older raw-only `data.dvc` pointer (`a3a457d03c51ff8b037a833440f6ad13.dir`), and DVC synchronized the workspace to exactly that historical data version.
+
+After `git checkout main` and `python -m uv run dvc checkout`, both processed directories returned. The restored full processed dataset contained 16,643 images, and the restored mini dataset contained 3,292 images. `main` again pointed to `3241849d384e84b5ed285c88cafc5c937dbe8da6`, and `dvc status` reported that the data and pipelines were up to date. This demonstrates that Git versions the small DVC pointer while DVC versions and materializes the corresponding dataset contents.
