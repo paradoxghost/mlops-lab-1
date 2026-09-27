@@ -1,0 +1,51 @@
+services:
+  mlflow:
+    build: ./mlflow
+    image: food11-mlflow:lab4
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflow-data:/mlflow-data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    restart: unless-stopped
+
+  inference:
+    build: .
+    image: food11-api:latest
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_LOAD_TIMEOUT_SECONDS: "300"
+      MODEL_LOAD_RETRY_SECONDS: "5"
+    expose:
+      - "8000"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: food11-frontend:lab4
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      INFERENCE_URL: http://inference:8000
+    depends_on:
+      inference:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  mlflow-data:
+    name: mlflow-data

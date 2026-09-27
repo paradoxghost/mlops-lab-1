@@ -1,0 +1,17 @@
+.git/
+.dvc/
+.venv/
+data/
+mlruns/
+mlartifacts/
+mlflow.db*
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.env
+.env.*
+!.env.example
+*.log
+tests/
+LAB*_ANSWERS.md
+LAB34_GUIDE.md
