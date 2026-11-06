@@ -21,7 +21,6 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torchvision.models import ResNet18_Weights, resnet18
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 TRACKING_URI = "http://127.0.0.1:5000"
 DATASETS = {"mini": "food11_processed_mini", "processed": "food11_processed"}

@@ -8,7 +8,6 @@ from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
 
-
 CLASS_NAMES = {
     0: "Bread",
     1: "Dairy product",
@@ -22,6 +21,7 @@ CLASS_NAMES = {
     9: "Soup",
     10: "Vegetable-Fruit",
 }
+CLASSES = list(CLASS_NAMES.values())
 SPLITS = ("training", "evaluation", "validation")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 IMAGE_SIZE = (128, 128)
@@ -48,6 +48,18 @@ def class_id_from_filename(path: Path) -> int:
             f"Invalid class prefix {class_id} in {path.name!r}: expected 0 through 10."
         )
     return class_id
+
+
+def category_from_filename(filename: str) -> str:
+    """Map a validated Food-11 filename prefix to its category."""
+    return CLASS_NAMES[class_id_from_filename(Path(filename))]
+
+
+def resize_image(img: Image.Image, size: int = 128) -> Image.Image:
+    """Return a new RGB square image using the existing Lanczos preprocessing."""
+    if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+        raise ValueError("Image size must be a positive integer")
+    return img.convert("RGB").resize((size, size), Image.Resampling.LANCZOS)
 
 
 def collect_raw_images() -> dict[str, dict[int, list[Path]]]:
@@ -84,11 +96,11 @@ def create_category_directories(root: Path) -> None:
             (root / split / class_name).mkdir(parents=True, exist_ok=True)
 
 
-def resize_image(source: Path, destination: Path) -> None:
+def save_resized_image(source: Path, destination: Path) -> None:
     """Read one image, convert it to RGB, resize it, and save it."""
     try:
         with Image.open(source) as image:
-            resized = image.convert("RGB").resize(IMAGE_SIZE, Image.Resampling.LANCZOS)
+            resized = resize_image(image, IMAGE_SIZE[0])
             try:
                 resized.save(destination)
             finally:
@@ -114,7 +126,7 @@ def prepare_datasets(images: dict[str, dict[int, list[Path]]]) -> dict[str, tupl
             for class_id, class_name in CLASS_NAMES.items():
                 for index, source in enumerate(images[split][class_id]):
                     processed_path = PROCESSED_ROOT / split / class_name / source.name
-                    resize_image(source, processed_path)
+                    save_resized_image(source, processed_path)
                     full_count += 1
 
                     if index < MINI_LIMIT:

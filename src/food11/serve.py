@@ -12,6 +12,7 @@ import warnings
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
 import mlflow
 import mlflow.pyfunc
@@ -21,12 +22,14 @@ from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
+from .data import CLASSES
 
 MODEL_URI = "models:/food11@champion"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 LOGGER = logging.getLogger(__name__)
+model = None
 
 
 @dataclass
@@ -69,6 +72,16 @@ def load_registered_model() -> LoadedModel:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global model
+    model = None
+    if os.environ.get("SKIP_MODEL"):
+        app.state.loaded = LoadedModel(model=None, categories=CLASSES.copy(), version="unloaded")
+        try:
+            yield
+        finally:
+            model = None
+            del app.state.loaded
+        return
     mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000"))
     os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", "10")
     os.environ.setdefault("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "1")
@@ -81,6 +94,7 @@ async def lifespan(app: FastAPI):
     while True:
         try:
             app.state.loaded = await asyncio.to_thread(load_registered_model)
+            model = app.state.loaded.model
             break
         except Exception as error:
             if time.monotonic() >= deadline:
@@ -91,8 +105,11 @@ async def lifespan(app: FastAPI):
             LOGGER.warning("Champion not ready (%s); retrying in %.1fs", type(error).__name__, delay)
             await asyncio.sleep(delay)
     LOGGER.info("Loaded food11 champion version %s on CPU", app.state.loaded.version)
-    yield
-    del app.state.loaded
+    try:
+        yield
+    finally:
+        model = None
+        del app.state.loaded
 
 
 app = FastAPI(title="Food-11 classifier", lifespan=lifespan)
@@ -120,7 +137,9 @@ def health() -> dict[str, str]:
 
 
 @app.post("/predict", response_model=Prediction)
-def predict(request: Request, response: Response, file: UploadFile = File(...)) -> Prediction:
+def predict(request: Request, response: Response, file: Annotated[UploadFile, File()]) -> Prediction:
+    if model is None:
+        raise HTTPException(status_code=503, detail="No model is loaded")
     content = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Image must be at most 10 MiB")
@@ -129,7 +148,7 @@ def predict(request: Request, response: Response, file: UploadFile = File(...)) 
     batch = preprocess_image(content)
     loaded = request.app.state.loaded
     try:
-        logits = np.asarray(loaded.model.predict(batch), dtype=np.float64)
+        logits = np.asarray(model.predict(batch), dtype=np.float64)
         if logits.shape != (1, 11) or not np.isfinite(logits).all():
             raise ValueError("Expected one finite vector of 11 logits")
         probabilities = np.exp(logits[0] - logits[0].max())

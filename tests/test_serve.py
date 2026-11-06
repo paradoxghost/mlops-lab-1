@@ -9,7 +9,6 @@ from PIL import Image
 
 from src.food11 import serve
 
-
 CATEGORIES = ["Bread", "Dairy product", "Dessert", "Egg", "Fried food", "Meat",
               "Noodles-Pasta", "Rice", "Seafood", "Soup", "Vegetable-Fruit"]
 
@@ -88,14 +87,13 @@ def test_startup_timeout_does_not_report_healthy(loaded, monkeypatch):
     loaded[1].side_effect = ConnectionError("MLflow unavailable")
     monkeypatch.setenv("MODEL_LOAD_TIMEOUT_SECONDS", "0.001")
     monkeypatch.setenv("MODEL_LOAD_RETRY_SECONDS", "0.01")
-    with pytest.raises(RuntimeError, match="Could not load"):
-        with TestClient(serve.app):
-            pass
+    with pytest.raises(RuntimeError, match="Could not load"), TestClient(serve.app):
+        pass
 
 
 def test_registry_alias_and_logged_mapping(tmp_path, monkeypatch):
     mapping = tmp_path / "class_to_idx.json"
-    mapping.write_text(__import__("json").dumps(dict(zip(CATEGORIES, range(11)))))
+    mapping.write_text(__import__("json").dumps(dict(zip(CATEGORIES, range(11), strict=True))))
     client = Mock()
     client.get_model_version_by_alias.return_value = SimpleNamespace(run_id="run-123", version="7")
     client.download_artifacts.return_value = str(mapping)
